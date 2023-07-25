@@ -158,6 +158,6 @@ function calRPN(RPN) {
     }
     return stack.pop();
 }
-const interpreter = new Interpreter(" 2  + 2323 * 8 / 8 + 1");
+const interpreter = new Interpreter(" 2  + 2323 * 8 / 8 + 1 + ");
 console.log(interpreter.expr());
 

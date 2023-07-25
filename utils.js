@@ -1,5 +1,5 @@
 function isNumber(char) {
-    return char!== ' ' && !isNaN(Number(char));
+    return char!== ' ' && char != null && !isNaN(Number(char));
 }
 
 module.exports = {
