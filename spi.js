@@ -1,23 +1,25 @@
-const {isNumber} = require('./utils')
-const {INTEGER, PLUS, MINUS, EOF, DIV, MUL,LEFT, RIGHT} = require('./constant')
+const {isNumber} = require("./utils");
+const {INTEGER, PLUS, MINUS, MUL, DIV, LEFT, RIGHT, EOF} = require("./constant");
+const {NumAST, BinAST} = require("./ast/ast");
+
 class Token{
     constructor(type, value) {
         this.type = type;
         this.value = value;
     }
+    toString() {
+        return `Token(${this.type}, ${this.value})`
+    }
 }
 
-class Interpreter {
+class Lexer{
     constructor(text) {
         this.text = text;
         this.pos = 0;
         this.currentChar = this.text[this.pos];
         // 初始化的时候就赋值 避免在expr中递归调用出错
-        this.currentToken = this.getNextToken();
     }
-    error() {
-        throw Error('Error parsing input')
-    }
+
     // 指针向前移动 更新当前字符
     advance() {
         this.pos++;
@@ -32,6 +34,9 @@ class Interpreter {
         while (this.currentChar !== null && this.currentChar === ' ') {
             this.advance()
         }
+    }
+    error() {
+        throw new Error('Invalid character')
     }
     getNextToken() {
         while (this.currentChar !== null) {
@@ -77,10 +82,19 @@ class Interpreter {
         }
         return parseInt(this.text.slice(start, this.pos));
     }
+}
+class Parser {
+    constructor(lexer) {
+        this.lexer = lexer;
+        this.currentToken = this.lexer.getNextToken();
+    }
+    error() {
+        throw Error('Invalid syntax')
+    }
     // 验证当前token是否满足给定的类型 并获取下一个token
     eat(tokenType) {
         if (this.currentToken.type === tokenType) {
-            this.currentToken = this.getNextToken();
+            this.currentToken = this.lexer.getNextToken();
         } else {
             this.error();
         }
@@ -91,46 +105,78 @@ class Interpreter {
         let token = this.currentToken;
         if (token.type === INTEGER) {
             this.eat(INTEGER);
-            return token.value;
+            return new NumAST(token);
         } else if (token.type === LEFT) {
             this.eat(LEFT);
-            let result = this.expr();
+            let node = this.expr();
             this.eat(RIGHT);
-            return result;
+            return node;
         }
     }
     // term: factor[(MUL | DIV)factor]*
     term () {
-        let res = this.factor();
+        let node = this.factor();
         while ([DIV, MUL].includes(this.currentToken.type)) {
+            let token = this.currentToken;
             if (this.currentToken.type === DIV) {
                 this.eat(DIV);
-                res /= this.factor()
             } else {
                 this.eat(MUL);
-                res *= this.factor();
             }
+            node = new BinAST(node, token, this.factor());
         }
-        return res;
+        return node;
     }
     // expr : term[(PLUS | MINUS)term]*
     expr() {
-        let res = this.term();
+        let node = this.term();
         while ([MINUS, PLUS].includes(this.currentToken.type)) {
+            let token = this.currentToken;
             if (this.currentToken.type === MINUS) {
                 this.eat(MINUS);
-                res -= this.term();
             } else {
                 this.eat(PLUS);
-                res += this.term()
             }
-
+            node = new BinAST(node, token, this.term());
         }
-        return res;
+        return node;
     }
+
+    label() {
+
+    }
+
+
 
 }
 
-const interpreter = new Interpreter("   1 + (2 * 3 + (1 - 1))");
-console.log(interpreter.expr());
+let lexer = new Lexer(" 7 + (((3 + 2)))");
+let parser = new Parser(lexer);
+let root = parser.expr();
+var text = ""
+function visitor(root) {
+    if (root.left === null && root.right === null) {
+        return root.token.value;
+    }
+    let left = visitor(root.left);
+    let right = visitor(root.right);
+    let res;
+    if ([MUL, DIV, MINUS, PLUS].includes(root.token.type)) {
+        if (root.token.type === MUL) {
+            res = left * right;
+        } else if (root.token.type === DIV) {
+            res = left / right;
+        } else if (root.token.type === PLUS) {
+            res = left + right;
+        } else if (root.token.type === MINUS) {
+            res = left - right;
+        }
+    }
+    return res;
+
+}
+
+
+
+
 
